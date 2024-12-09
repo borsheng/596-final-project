@@ -5,18 +5,13 @@ from .force_prediction import load_model, predict_forces
 
 def run_simulation(initial_positions, model_path, steps, force_function):
     positions = initial_positions
-    model = load_model(model_path, input_dim=positions.shape[1], hidden_dim=64, output_dim=positions.shape[1])
+    all_positions = [positions.copy()]  # Save initial positions
 
     for step in range(steps):
         print(f"Step {step + 1}/{steps}")
+        forces = force_function(positions)
+        positions += 0.01 * forces  # Update positions
+        all_positions.append(positions.copy())  # Save positions at each step
 
-        # Exchange data between MPI processes
-        shared_positions = mpi_exchange_data(positions)
+    return np.array(all_positions)  # Return all positions
 
-        # Compute forces using the ML model
-        forces = mpi_force_computation(lambda x: predict_forces(model, x), shared_positions)
-
-        # Update positions using forces (simple velocity-Verlet integration)
-        positions += 0.01 * forces  # 假設固定時間步長
-
-    return positions
